@@ -107,12 +107,13 @@ def audio_stream(s,i):
     output=True,
     frames_per_buffer=CHUNK)
     data = b""
-    #datalen = 0
     payload_size = struct.calcsize("Q")
-    total_frames = struct.unpack("Q", s.recv(struct.calcsize("Q")))[0]
+    total_frames = struct.unpack("Q", s.recv(struct.calcsize("Q")))[0] / 1024
+    total_frames = int(total_frames) + 1
+    print(total_frames)
     frames_written = 0
     while True:
-        if play_flag[i] and stream.is_active():
+        if play_flag[i] and frames_written < total_frames:
             if pause_flag[i] == False:
                 try:
                     while len(data) < payload_size:

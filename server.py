@@ -12,7 +12,7 @@ import wave, pyaudio, pickle
 
 song_directory = "songs"
 pause_flag = False
-#songfilenames = glob.glob(song_directory + '/*.mp3')
+
 
 def pause_unpause():
     global pause_flag
@@ -40,7 +40,7 @@ def audio_stream(songname,s):
     songpath = os.path.join(song_directory,songname)
     wf = wave.open(songpath, 'rb')
     filesize = os.path.getsize(songpath)
-    total_frames = wf.getnframes()
+    #total_frames = wf.getnframes()
     p = pyaudio.PyAudio()
     stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                     channels=wf.getnchannels(),
@@ -50,7 +50,7 @@ def audio_stream(songname,s):
     data = None
     datasent = 0
     # send total number of frames
-    s.sendall(struct.pack("Q", total_frames))
+    s.sendall(struct.pack("Q", filesize))
     while filesize>datasent:
         if s:
             if not pause_flag:
