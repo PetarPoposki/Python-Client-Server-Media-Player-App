@@ -11,7 +11,13 @@ import wave, pyaudio, pickle
 
 
 song_directory = "songs"
+pause_flag = False
 #songfilenames = glob.glob(song_directory + '/*.mp3')
+
+def pause_unpause():
+    global pause_flag
+    pause_flag = not pause_flag
+
 
 def send_song(songname,s):
          
@@ -31,30 +37,31 @@ def send_song(songname,s):
 
 def audio_stream(songname,s):
     CHUNK = 1024
-    songpath = os.path.join(song_directory, songname)
+    songpath = os.path.join(song_directory,songname)
     wf = wave.open(songpath, 'rb')
-    
+    filesize = os.path.getsize(songpath)
+    total_frames = wf.getnframes()
     p = pyaudio.PyAudio()
-   
     stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                     channels=wf.getnchannels(),
                     rate=wf.getframerate(),
                     input=True,
                     frames_per_buffer=CHUNK)        
- 
     data = None
-    while True:
+    datasent = 0
+    # send total number of frames
+    s.sendall(struct.pack("Q", total_frames))
+    while filesize>datasent:
         if s:
-            while True:
+            if not pause_flag:
                 data = wf.readframes(CHUNK)
+                datasent = datasent + len(data)
                 a = pickle.dumps(data)
                 message = struct.pack("Q",len(a))+a
                 s.sendall(message)
     stream.stop_stream()
     stream.close()
     p.terminate()
-    #s.close()
-    #s.shutdown(socket.SHUT_RDWR)
 
 
 def recv_all(sock, length):
@@ -68,16 +75,11 @@ def recv_all(sock, length):
 
 
 l = _thread.allocate_lock()
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     
 def opsluzhiKlient(s):
-    
-    #jpgfiles = glob.glob(directory_path+ '/*.jpg') problem mi pravese so jpg fajlovi
     directory_path = "images"
     files = glob.glob(directory_path + '/*.png')
-    #print(files)
 
     filenames = []
     while True:
@@ -92,13 +94,9 @@ def opsluzhiKlient(s):
                     s.sendall(msg)
                     
                     for file in files:
-                        #file_namelong = str(file).split("/")
-                        #filename = file_namelong[1]
                         file_name = str(file).split("\\")[1]
                         filenames.append(file_name)
-                  
-                    #print(filenames)
-                            
+                 
                         # Send the file name
                     msg = ""
                     for name in filenames:
@@ -112,22 +110,27 @@ def opsluzhiKlient(s):
                     msg = struct.pack("!i", length) + msg.encode()
                     s.sendall(msg)
                     
-                    
                     for file in files:
                         with open(file, 'rb') as f:
                             image_data = f.read()
                             image_size = struct.pack('!i', len(image_data))
                             s.sendall(image_size + image_data)
                         f.close()
+                        
+                        
                 elif data[0] == "PLAYSONG":
                     songname = data[1]
                     audio_stream(songname,s)
                 elif data[0] == "DOWNLOAD":
                     songname = data[1]
                     send_song(songname,s)
+                elif data[0] == "PAUSE":
+                    pause_unpause()
             except struct.error:
                 return
-    
+ 
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('localhost', 10050))
 s.listen(1)
 print("Running")

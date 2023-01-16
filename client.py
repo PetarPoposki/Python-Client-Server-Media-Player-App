@@ -5,12 +5,7 @@ Created on Mon Jan  9 23:17:05 2023
 """
 
 
-
-
-#from tkinter import *
 from tkinter import ttk
-#import pygame
-#import subprocess
 import os
 import sys, socket, _thread, struct
 import pyaudio, pickle
@@ -20,7 +15,6 @@ root = tk.Tk()
 root.title('MP3 Player')
 root.iconbitmap("clientimages/gui.ico")
 
-AUDIO_PORT = 10051
 N = 0
 
 l = _thread.allocate_lock()
@@ -59,23 +53,44 @@ def download_song(i):
         
     
 def falseflag(i):
+    global play_flag
     play_flag[i] = False
     
 def pause_unpause(i):
-    pause_flag[i] = not pause_flag[i]
+    global pause_flag
+    global play_flag
+    if(play_flag[i] == True):
+        s3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s3.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s3.connect(('localhost', 10050))
+        msg = "PAUSE|SONG"
+        fullmsg = (struct.pack("!i", length)) + msg.encode()
+        s3.sendall(fullmsg)
+        pause_flag[i] = not pause_flag[i]
+        s3.close()
+    else:
+        print("That song is not playing.")
 
 
 def song_request(i):
-    play_flag[i] = True
-    s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s1.connect(('localhost', 10050))
-    msg = "PLAYSONG|" + imagenames[i].split(".")[0] + ".wav"
-    length = len(msg)
-    print(msg)
-    fullmsg = (struct.pack("!i", length)).decode() + msg
-    s1.sendall(fullmsg.encode())
-    audio_stream(s1,i)
+    global play_flag
+    k = 0
+    for j in range(N):
+        if play_flag[j] == True:
+            k = 1
+            break
+    if k == 0:
+        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s1.connect(('localhost', 10050))
+        msg = "PLAYSONG|" + imagenames[i].split(".")[0] + ".wav"
+        length = len(msg)
+        print(msg)
+        fullmsg = (struct.pack("!i", length)).decode() + msg
+        s1.sendall(fullmsg.encode())
+        audio_stream(s1,i)
+    else:
+        print("Another song is already playing.")
         
     
 
@@ -83,21 +98,29 @@ def audio_stream(s,i):
     p = pyaudio.PyAudio()
     CHUNK = 1024
     global stream
+    global play_flag
+    global pause_flag
+    play_flag[i] = True
     stream = p.open(format=p.get_format_from_width(2),
     channels=2,
     rate=44100,
     output=True,
     frames_per_buffer=CHUNK)
     data = b""
+    #datalen = 0
     payload_size = struct.calcsize("Q")
+    total_frames = struct.unpack("Q", s.recv(struct.calcsize("Q")))[0]
+    frames_written = 0
     while True:
-        if play_flag[i]:
+        if play_flag[i] and stream.is_active():
             if pause_flag[i] == False:
                 try:
                     while len(data) < payload_size:
                         packet = s.recv(4*1024) # 4K
-                        if not packet: break
+                        if not packet:
+                            break
                         data+=packet
+    
                     packed_msg_size = data[:payload_size]
                     data = data[payload_size:]
                     msg_size = struct.unpack("Q",packed_msg_size)[0]
@@ -107,21 +130,33 @@ def audio_stream(s,i):
                     data  = data[msg_size:]
                     frame = pickle.loads(frame_data)
                     stream.write(frame)
-            
+                    frames_written += 1
+                    if frames_written == total_frames:
+                        stream.stop_stream()
+                        stream.close()
+                        p.terminate()
+                        s.close()
+                        play_flag[i] = False
+                        break
                 except:
-                    
+                    stream.stop_stream()
+                    stream.close()
+                    p.terminate()
+                    s.close()
+                    play_flag[i] = False
                     break
         else:
             stream.stop_stream()
             stream.close()
             p.terminate()
             s.close()
-            play_flag[i] = True
+            play_flag[i] = False
+            break
     stream.stop_stream()
     stream.close()
     p.terminate()
     s.close()
-    play_flag[i] = True
+    play_flag[i] = False
     print('Audio closed')
 
 def recv_all(sock, length):
@@ -210,8 +245,6 @@ while(check < len(imagenames)):
     
 
 
-
-# Set the number of buttons
 N = len(imagenames)
 for i in range(N):
     play_flag.append(False)
@@ -221,16 +254,6 @@ for i in range(N):
     slikaname = "clientimages/" + imagenames[i] 
     sliki.append(tk.PhotoImage(file=slikaname, height = 168, width = 300))
 
-# Calculate the number of rows needed
-num_rows = N // 2 + N % 2
-
-
-
-# Set the column and row weights to non-zero values
-#for i in range(10):
-    #root.columnconfigure(i, weight=1)
-#for i in range(num_rows+1):
-    #root.rowconfigure(i, weight=1)
     
 root.rowconfigure(0, weight = 1)
 root.columnconfigure(0, weight = 1)
