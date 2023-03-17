@@ -42,6 +42,9 @@ def audio_stream(songname,s):
     filesize = os.path.getsize(songpath)
     total_frames = wf.getnframes()
     p = pyaudio.PyAudio()
+    # framerate can be different for different audio files, we have to send it to client
+    rata = wf.getframerate()
+    s.sendall(struct.pack("Q", rata))
     stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                     channels=wf.getnchannels(),
                     rate=wf.getframerate(),
@@ -51,6 +54,7 @@ def audio_stream(songname,s):
     datasent = 0
     # send total number of frames
     s.sendall(struct.pack("Q", total_frames))
+    
     while filesize>datasent:
         if s:
             if not pause_flag:
@@ -138,5 +142,6 @@ while True:
     sc, sockname = s.accept()
     print(sockname)
     _thread.start_new_thread(opsluzhiKlient,(sc,))
+
 
     
