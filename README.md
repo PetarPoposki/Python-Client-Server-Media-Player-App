@@ -15,7 +15,9 @@ https://drive.google.com/file/d/1Beup9wpe1tU4GfiHUvaZA4m-gcoMpL6L/view?usp=shari
 After this, you only need to install 3 custom Python libraries:
 
 python -m pip install tk
+
 python -m pip install glob2
+
 python -m pip install pyaudio
 
 And you will have everything you need to run the project.
