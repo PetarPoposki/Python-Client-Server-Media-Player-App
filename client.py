@@ -101,9 +101,12 @@ def audio_stream(s,i):
     global play_flag
     global pause_flag
     play_flag[i] = True
+    #payload_length = struct.calcsize("Q")
+    rata = struct.unpack("Q", s.recv(struct.calcsize("Q")))[0]
+    print("Here is the rate ", rata)
     stream = p.open(format=p.get_format_from_width(2),
     channels=2,
-    rate=44100,
+    rate=int(rata) ,
     output=True,
     frames_per_buffer=CHUNK)
     data = b""
