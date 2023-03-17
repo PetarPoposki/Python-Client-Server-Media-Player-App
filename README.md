@@ -12,7 +12,7 @@ You should also create 2 empty folders called "clientimages" and "clientsongs" i
 
 
 The following is a Google Drive link from which you can download the entire project:
-https://drive.google.com/file/d/1Beup9wpe1tU4GfiHUvaZA4m-gcoMpL6L/view?usp=sharing
+https://drive.google.com/drive/folders/1rFZ8gXfJ24Y5xIBV6J6nHMBWarbGI-L-?usp=share_link
 
 After this, you only need to install 3 custom Python libraries:
 
